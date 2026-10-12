@@ -89,17 +89,26 @@ class IRGenerator:
         """Generate IR for TURN command"""
         indent = "  " * depth
         
-        # Find direction child
+        # Find direction child - need to look deeper into the AST
         direction = None
+        
+        # The structure is T -> TURN D SEMICOLON, where D -> LEFT or RIGHT
+        # So we need to find the D node first, then get LEFT or RIGHT from it
         for child in node.children:
-            if child.node_type in ["LEFT", "RIGHT"]:
-                direction = child.node_type
+            if child.node_type == "D":  # Direction node
+                # Now find LEFT or RIGHT inside D
+                for grandchild in child.children:
+                    if grandchild.node_type in ["LEFT", "RIGHT"]:
+                        direction = grandchild.node_type
+                        break
                 break
         
         if direction:
             instr = IRInstruction("TURN", direction)
             self.instructions.append(instr)
             print(f"{indent}[IR Gen] Generated: {instr}")
+        else:
+            print(f"{indent}[IR Gen] WARNING: Could not find direction for TURN")
     
     def generate_repeat(self, node, depth):
         """Generate IR for REPEAT - expands the loop"""
@@ -115,14 +124,19 @@ class IRGenerator:
         if count is not None:
             print(f"{indent}[IR Gen] Expanding REPEAT {count} times...")
             
-            # Find the statement list inside repeat
+            # Find the statement list inside repeat (the L node between braces)
+            statement_list = None
             for child in node.children:
                 if child.node_type == "L":  # Statement list
-                    # Expand loop by repeating the statements
-                    for iteration in range(count):
-                        print(f"{indent}  [IR Gen] Iteration {iteration + 1}/{count}")
-                        for stmt_child in child.children:
-                            self.visit_node(stmt_child, depth + 1)
+                    statement_list = child
+                    break
+            
+            if statement_list:
+                # Expand loop by repeating the statements
+                for iteration in range(count):
+                    print(f"{indent}  [IR Gen] Iteration {iteration + 1}/{count}")
+                    # Visit the statement list node, which will recursively process its contents
+                    self.visit_node(statement_list, depth + 1)
 
 
 def generate_ir_objects(ast, grammar) -> List[IRInstruction]:

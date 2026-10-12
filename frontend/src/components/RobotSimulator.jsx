@@ -1,154 +1,146 @@
-import React, { useState, useEffect, useRef } from 'react'
-import './RobotSimulator.css'
+import React, { useState, useEffect } from "react";
+import "./RobotSimulator.css";
 
-const GRID_SIZE = 10
-const CELL_SIZE = 50
+const GRID_SIZE = 10;
+const CELL_SIZE = 50;
 
-const DIRECTIONS = ['NORTH', 'EAST', 'SOUTH', 'WEST']
+const DIRECTIONS = ["NORTH", "EAST", "SOUTH", "WEST"];
 const DIRECTION_ARROWS = {
-  NORTH: '▲',
-  EAST: '▶',
-  SOUTH: '▼',
-  WEST: '◀'
-}
+  NORTH: "▲",
+  EAST: "▶",
+  SOUTH: "▼",
+  WEST: "◀",
+};
 
 function RobotSimulator({ instructions }) {
-  const [robotPos, setRobotPos] = useState({ x: 5, y: 5 })
-  const [robotDir, setRobotDir] = useState('NORTH')
-  const [currentStep, setCurrentStep] = useState(0)
-  const [isRunning, setIsRunning] = useState(false)
-  const [executionLog, setExecutionLog] = useState([])
-  const [speed, setSpeed] = useState(500)
-  const intervalRef = useRef(null)
+  const [robotPos, setRobotPos] = useState({ x: 5, y: 5 });
+  const [robotDir, setRobotDir] = useState("NORTH");
+  const [currentStep, setCurrentStep] = useState(0);
+  const [isRunning, setIsRunning] = useState(false);
+  const [executionLog, setExecutionLog] = useState([]);
+  const [speed, setSpeed] = useState(500);
 
-  const initialState = { x: 5, y: 5, dir: 'NORTH' }
+  const initialState = { x: 5, y: 5, dir: "NORTH" };
 
+  // Auto-execute next step when running
   useEffect(() => {
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
+    if (!isRunning || !instructions || currentStep >= instructions.length) {
+      if (isRunning && currentStep >= instructions.length) {
+        setIsRunning(false);
       }
+      return;
     }
-  }, [])
+
+    const timer = setTimeout(() => {
+      executeStep();
+    }, speed);
+
+    return () => clearTimeout(timer);
+  }, [isRunning, currentStep]);
 
   const reset = () => {
-    setRobotPos({ x: initialState.x, y: initialState.y })
-    setRobotDir(initialState.dir)
-    setCurrentStep(0)
-    setIsRunning(false)
-    setExecutionLog([])
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current)
-    }
-  }
+    setRobotPos({ x: initialState.x, y: initialState.y });
+    setRobotDir(initialState.dir);
+    setCurrentStep(0);
+    setIsRunning(false);
+    setExecutionLog([]);
+  };
 
   const executeStep = () => {
     if (!instructions || currentStep >= instructions.length) {
-      setIsRunning(false)
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-      }
-      return false
+      setIsRunning(false);
+      return;
     }
 
-    const instruction = instructions[currentStep]
-    const log = `[${currentStep}] ${instruction.opcode} ${instruction.operand || ''}`
-    
-    if (instruction.opcode === 'MOVE') {
-      const distance = instruction.operand
-      const newPos = move(robotPos, robotDir, distance)
-      
+    const instruction = instructions[currentStep];
+    const log = `[${currentStep}] ${instruction.opcode} ${instruction.operand || ""}`;
+
+    if (instruction.opcode === "MOVE") {
+      const distance = instruction.operand;
+      const newPos = move(robotPos, robotDir, distance);
+
       if (newPos.outOfBounds) {
-        setExecutionLog(prev => [...prev, `${log} - OUT OF BOUNDS! Stopped.`])
-        setIsRunning(false)
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current)
-        }
-        return false
+        setExecutionLog((prev) => [
+          ...prev,
+          `${log} - OUT OF BOUNDS! Stopped.`,
+        ]);
+        setIsRunning(false);
+        return;
       }
-      
-      setRobotPos(newPos)
-      setExecutionLog(prev => [...prev, log])
-    } else if (instruction.opcode === 'TURN') {
-      const direction = instruction.operand
-      const newDir = turn(robotDir, direction)
-      setRobotDir(newDir)
-      setExecutionLog(prev => [...prev, log])
+
+      setRobotPos(newPos);
+      setExecutionLog((prev) => [...prev, log]);
+    } else if (instruction.opcode === "TURN") {
+      const direction = instruction.operand;
+      const newDir = turn(robotDir, direction);
+      setRobotDir(newDir);
+      setExecutionLog((prev) => [...prev, log]);
     }
 
-    setCurrentStep(prev => prev + 1)
-    return true
-  }
+    setCurrentStep((prev) => prev + 1);
+  };
 
   const move = (pos, dir, distance) => {
-    let newX = pos.x
-    let newY = pos.y
+    let newX = pos.x;
+    let newY = pos.y;
 
     switch (dir) {
-      case 'NORTH':
-        newY -= distance
-        break
-      case 'EAST':
-        newX += distance
-        break
-      case 'SOUTH':
-        newY += distance
-        break
-      case 'WEST':
-        newX -= distance
-        break
+      case "NORTH":
+        newY -= distance;
+        break;
+      case "EAST":
+        newX += distance;
+        break;
+      case "SOUTH":
+        newY += distance;
+        break;
+      case "WEST":
+        newX -= distance;
+        break;
     }
 
     if (newX < 0 || newX >= GRID_SIZE || newY < 0 || newY >= GRID_SIZE) {
-      return { x: pos.x, y: pos.y, outOfBounds: true }
+      return { x: pos.x, y: pos.y, outOfBounds: true };
     }
 
-    return { x: newX, y: newY }
-  }
+    return { x: newX, y: newY };
+  };
 
   const turn = (currentDir, turnDir) => {
-    const currentIndex = DIRECTIONS.indexOf(currentDir)
-    let newIndex
+    const currentIndex = DIRECTIONS.indexOf(currentDir);
+    let newIndex;
 
-    if (turnDir === 'LEFT') {
-      newIndex = (currentIndex - 1 + DIRECTIONS.length) % DIRECTIONS.length
+    if (turnDir === "LEFT") {
+      newIndex = (currentIndex - 1 + DIRECTIONS.length) % DIRECTIONS.length;
     } else {
-      newIndex = (currentIndex + 1) % DIRECTIONS.length
+      newIndex = (currentIndex + 1) % DIRECTIONS.length;
     }
 
-    return DIRECTIONS[newIndex]
-  }
+    return DIRECTIONS[newIndex];
+  };
 
   const handleRun = () => {
     if (!instructions || instructions.length === 0) {
-      return
+      return;
     }
 
     if (currentStep >= instructions.length) {
-      reset()
-      return
+      reset();
+      return;
     }
 
-    setIsRunning(true)
-    intervalRef.current = setInterval(() => {
-      if (!executeStep()) {
-        clearInterval(intervalRef.current)
-      }
-    }, speed)
-  }
+    setIsRunning(true);
+  };
 
   const handlePause = () => {
-    setIsRunning(false)
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current)
-    }
-  }
+    setIsRunning(false);
+  };
 
   const handleStep = () => {
     if (!isRunning) {
-      executeStep()
+      executeStep();
     }
-  }
+  };
 
   return (
     <div className="robot-simulator-panel">
@@ -182,14 +174,11 @@ function RobotSimulator({ instructions }) {
             ))}
 
             {/* Robot */}
-            <g transform={`translate(${robotPos.x * CELL_SIZE + CELL_SIZE / 2}, ${robotPos.y * CELL_SIZE + CELL_SIZE / 2})`}>
+            <g
+              transform={`translate(${robotPos.x * CELL_SIZE + CELL_SIZE / 2}, ${robotPos.y * CELL_SIZE + CELL_SIZE / 2})`}
+            >
               <circle r="18" fill="#667eea" />
-              <text
-                textAnchor="middle"
-                dy="7"
-                fontSize="24"
-                fill="white"
-              >
+              <text textAnchor="middle" dy="7" fontSize="24" fill="white">
                 {DIRECTION_ARROWS[robotDir]}
               </text>
             </g>
@@ -225,15 +214,17 @@ function RobotSimulator({ instructions }) {
           </button>
           <button
             onClick={handleStep}
-            disabled={!instructions || instructions.length === 0 || isRunning || currentStep >= instructions.length}
+            disabled={
+              !instructions ||
+              instructions.length === 0 ||
+              isRunning ||
+              currentStep >= instructions.length
+            }
             className="btn btn-secondary"
           >
             ⏭ Step
           </button>
-          <button
-            onClick={reset}
-            className="btn btn-secondary"
-          >
+          <button onClick={reset} className="btn btn-secondary">
             🔄 Reset
           </button>
           <div className="speed-control">
@@ -255,17 +246,21 @@ function RobotSimulator({ instructions }) {
           <h3>Execution Log</h3>
           <div className="log-content">
             {executionLog.length === 0 ? (
-              <div className="log-empty">No execution yet. Compile code and press Run.</div>
+              <div className="log-empty">
+                No execution yet. Compile code and press Run.
+              </div>
             ) : (
               executionLog.map((log, i) => (
-                <div key={i} className="log-item">{log}</div>
+                <div key={i} className="log-item">
+                  {log}
+                </div>
               ))
             )}
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }
 
-export default RobotSimulator
+export default RobotSimulator;
