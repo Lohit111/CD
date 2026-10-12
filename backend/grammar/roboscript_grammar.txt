@@ -1,0 +1,62 @@
+# RoboScript Grammar Configuration File
+# This file defines the language syntax that the compiler will understand
+
+[TERMINALS]
+# Keywords
+MOVE
+TURN
+LEFT
+RIGHT
+REPEAT
+
+# Symbols
+SEMICOLON ;
+LBRACE {
+RBRACE }
+
+# Literals
+INT \d+
+
+[NON_TERMINALS]
+S Program
+L StatementList
+C Statement
+M MoveCommand
+T TurnCommand
+R RepeatCommand
+D Direction
+
+[PRODUCTION_RULES]
+# Start symbol
+S -> L
+
+# Statement list (supports multiple statements)
+L -> C L
+L -> epsilon
+
+# Statement types
+C -> M
+C -> T
+C -> R
+
+# Move command: MOVE <number> ;
+M -> MOVE INT SEMICOLON
+
+# Turn command: TURN <direction> ;
+T -> TURN D SEMICOLON
+
+# Direction
+D -> LEFT
+D -> RIGHT
+
+# Repeat block: REPEAT <number> { <statements> }
+R -> REPEAT INT LBRACE L RBRACE
+
+[SEMANTIC_RULES]
+# Constraints for semantic analysis
+MAX_MOVE_DISTANCE = 100
+MAX_REPEAT_COUNT = 50
+MAX_TOTAL_INSTRUCTIONS = 10000
+
+[START_SYMBOL]
+S

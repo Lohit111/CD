@@ -1,0 +1,104 @@
+.robot-simulator-panel {
+  display: flex;
+  flex-direction: column;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  height: 100%;
+}
+
+.simulator-content {
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.grid-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 4px;
+}
+
+.robot-info {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+  padding: 1rem;
+  background: #f0f0f0;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}
+
+.info-item {
+  font-size: 0.9rem;
+}
+
+.info-item strong {
+  color: #666;
+  margin-right: 0.5rem;
+}
+
+.simulator-controls {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.speed-control {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 0.5rem;
+}
+
+.speed-control label {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.speed-control input {
+  width: 100px;
+}
+
+.speed-control span {
+  font-size: 0.85rem;
+  color: #666;
+  min-width: 50px;
+}
+
+.execution-log {
+  margin-top: 1rem;
+}
+
+.execution-log h3 {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+  color: #666;
+}
+
+.log-content {
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 0.75rem;
+  max-height: 200px;
+  overflow-y: auto;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.85rem;
+}
+
+.log-empty {
+  color: #999;
+  font-style: italic;
+  font-family: sans-serif;
+}
+
+.log-item {
+  padding: 0.25rem 0;
+  color: #333;
+}
