@@ -1,18 +1,17 @@
 """
-Grammar Parser - Reads and parses the grammar configuration file
-This allows the compiler to be grammar-driven and adaptable
+Grammar Parser - Reads production rules and deduces terminals/non-terminals
 """
 
 import re
 from dataclasses import dataclass
-from typing import List, Dict, Set, Optional, Tuple
+from typing import List, Dict, Set, Optional
 
 
 @dataclass
 class ProductionRule:
     """Represents a single production rule: LHS -> RHS"""
     lhs: str
-    rhs: List[str]  # List of symbols on right-hand side
+    rhs: List[str]
     
     def __repr__(self):
         return f"{self.lhs} -> {' '.join(self.rhs)}"
@@ -20,100 +19,83 @@ class ProductionRule:
 
 @dataclass
 class Grammar:
-    """Represents the complete grammar configuration"""
-    terminals: Dict[str, Optional[str]]  # terminal name -> regex pattern (if any)
-    non_terminals: Dict[str, str]  # symbol -> description
+    """Represents the complete grammar"""
+    terminals: Dict[str, Optional[str]]
+    non_terminals: Dict[str, str]
     production_rules: List[ProductionRule]
     start_symbol: str
     semantic_rules: Dict[str, int]
     
     def is_terminal(self, symbol: str) -> bool:
-        """Check if a symbol is a terminal"""
         return symbol in self.terminals
     
     def is_non_terminal(self, symbol: str) -> bool:
-        """Check if a symbol is a non-terminal"""
         return symbol in self.non_terminals
     
     def get_productions_for(self, non_terminal: str) -> List[ProductionRule]:
-        """Get all production rules for a given non-terminal"""
         return [rule for rule in self.production_rules if rule.lhs == non_terminal]
     
     def get_terminal_pattern(self, terminal: str) -> Optional[str]:
-        """Get the regex pattern for a terminal, if it has one"""
         return self.terminals.get(terminal)
 
 
 class GrammarParser:
-    """Parses the grammar configuration file"""
+    """Parses pure production rules and deduces grammar structure"""
+    
+    # Hardcoded terminal patterns
+    TERMINAL_PATTERNS = {
+        'INT': r'\d+',
+        'SEMICOLON': ';',
+        'LBRACE': '{',
+        'RBRACE': '}',
+    }
+    
+    # Hardcoded keywords (terminals without patterns)
+    KEYWORDS = ['MOVE', 'TURN', 'LEFT', 'RIGHT', 'REPEAT']
+    
+    # Hardcoded semantic constraints
+    SEMANTIC_RULES = {
+        'MAX_MOVE_DISTANCE': 100,
+        'MAX_REPEAT_COUNT': 50,
+        'MAX_TOTAL_INSTRUCTIONS': 10000,
+    }
     
     def __init__(self, grammar_file_path: str):
         self.grammar_file_path = grammar_file_path
     
     def parse(self) -> Grammar:
-        """Parse the grammar file and return Grammar object"""
+        """Parse grammar file and deduce structure"""
         with open(self.grammar_file_path, 'r', encoding='utf-8') as f:
             content = f.read()
         
-        terminals = self._parse_terminals(content)
-        non_terminals = self._parse_non_terminals(content)
+        # Parse production rules
         production_rules = self._parse_production_rules(content)
-        start_symbol = self._parse_start_symbol(content)
-        semantic_rules = self._parse_semantic_rules(content)
+        
+        # Deduce non-terminals (symbols on LHS of rules)
+        non_terminals = self._deduce_non_terminals(production_rules)
+        
+        # Deduce terminals (symbols that appear in RHS but not in LHS)
+        terminals = self._deduce_terminals(production_rules, non_terminals)
+        
+        # Start symbol is the first non-terminal (first LHS)
+        start_symbol = production_rules[0].lhs if production_rules else 'S'
         
         return Grammar(
             terminals=terminals,
             non_terminals=non_terminals,
             production_rules=production_rules,
             start_symbol=start_symbol,
-            semantic_rules=semantic_rules
+            semantic_rules=self.SEMANTIC_RULES
         )
     
-    def _parse_terminals(self, content: str) -> Dict[str, Optional[str]]:
-        """Parse [TERMINALS] section"""
-        terminals = {}
-        section = self._extract_section(content, "TERMINALS")
-        
-        for line in section.split('\n'):
-            line = line.strip()
-            if not line or line.startswith('#'):
-                continue
-            
-            parts = line.split(maxsplit=1)
-            if len(parts) == 1:
-                # Terminal without pattern
-                terminals[parts[0]] = None
-            elif len(parts) == 2:
-                # Terminal with regex pattern
-                terminals[parts[0]] = parts[1]
-        
-        return terminals
-    
-    def _parse_non_terminals(self, content: str) -> Dict[str, str]:
-        """Parse [NON_TERMINALS] section"""
-        non_terminals = {}
-        section = self._extract_section(content, "NON_TERMINALS")
-        
-        for line in section.split('\n'):
-            line = line.strip()
-            if not line or line.startswith('#'):
-                continue
-            
-            parts = line.split(maxsplit=1)
-            if len(parts) == 2:
-                non_terminals[parts[0]] = parts[1]
-            elif len(parts) == 1:
-                non_terminals[parts[0]] = parts[0]
-        
-        return non_terminals
-    
     def _parse_production_rules(self, content: str) -> List[ProductionRule]:
-        """Parse [PRODUCTION_RULES] section"""
+        """Parse production rules from file"""
         rules = []
-        section = self._extract_section(content, "PRODUCTION_RULES")
         
-        for line in section.split('\n'):
+        for line in content.split('\n'):
             line = line.strip()
+            
+            # Skip empty lines and comments
             if not line or line.startswith('#'):
                 continue
             
@@ -127,51 +109,46 @@ class GrammarParser:
         
         return rules
     
-    def _parse_start_symbol(self, content: str) -> str:
-        """Parse [START_SYMBOL] section"""
-        section = self._extract_section(content, "START_SYMBOL")
+    def _deduce_non_terminals(self, rules: List[ProductionRule]) -> Dict[str, str]:
+        """Deduce non-terminals from LHS of production rules"""
+        non_terminals = {}
         
-        for line in section.split('\n'):
-            line = line.strip()
-            if line and not line.startswith('#'):
-                return line
+        for rule in rules:
+            if rule.lhs not in non_terminals:
+                non_terminals[rule.lhs] = rule.lhs
         
-        return "S"  # Default start symbol
+        return non_terminals
     
-    def _parse_semantic_rules(self, content: str) -> Dict[str, int]:
-        """Parse [SEMANTIC_RULES] section"""
-        rules = {}
-        section = self._extract_section(content, "SEMANTIC_RULES")
+    def _deduce_terminals(self, rules: List[ProductionRule], 
+                          non_terminals: Dict[str, str]) -> Dict[str, Optional[str]]:
+        """Deduce terminals from RHS symbols that are not non-terminals"""
+        all_symbols = set()
         
-        for line in section.split('\n'):
-            line = line.strip()
-            if not line or line.startswith('#'):
-                continue
-            
-            # Parse: KEY = VALUE
-            if '=' in line:
-                key, value = line.split('=', 1)
-                key = key.strip()
-                value = value.strip()
-                try:
-                    rules[key] = int(value)
-                except ValueError:
-                    rules[key] = value
+        # Collect all symbols from RHS
+        for rule in rules:
+            for symbol in rule.rhs:
+                if symbol != 'epsilon':  # epsilon is not a terminal
+                    all_symbols.add(symbol)
         
-        return rules
-    
-    def _extract_section(self, content: str, section_name: str) -> str:
-        """Extract a section from the grammar file"""
-        pattern = rf'\[{section_name}\](.*?)(?=\[|$)'
-        match = re.search(pattern, content, re.DOTALL)
+        # Terminals are symbols that are not non-terminals
+        terminals = {}
         
-        if match:
-            return match.group(1).strip()
-        return ""
+        for symbol in all_symbols:
+            if symbol not in non_terminals:
+                # Check if it's a known terminal with pattern
+                if symbol in self.TERMINAL_PATTERNS:
+                    terminals[symbol] = self.TERMINAL_PATTERNS[symbol]
+                elif symbol in self.KEYWORDS:
+                    terminals[symbol] = None  # Keyword without pattern
+                else:
+                    # Unknown terminal - treat as keyword
+                    terminals[symbol] = None
+        
+        return terminals
 
 
 def load_grammar(grammar_file_path: str) -> Grammar:
-    """Convenience function to load grammar from file"""
+    """Load grammar from production rules file"""
     parser = GrammarParser(grammar_file_path)
     return parser.parse()
 
@@ -181,8 +158,8 @@ if __name__ == "__main__":
     grammar = load_grammar("roboscript_grammar.txt")
     print("=== GRAMMAR LOADED ===")
     print(f"Start Symbol: {grammar.start_symbol}")
-    print(f"\nTerminals: {list(grammar.terminals.keys())}")
     print(f"\nNon-terminals: {list(grammar.non_terminals.keys())}")
+    print(f"\nTerminals: {list(grammar.terminals.keys())}")
     print(f"\nProduction Rules:")
     for rule in grammar.production_rules:
         print(f"  {rule}")
